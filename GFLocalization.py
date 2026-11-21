@@ -90,11 +90,11 @@ class GFLocalization(Localization,GaussianFilter):
         xk_bar, Pk_bar = self.Prediction(uk, Qk, xk_1, Pk_1)
 
         # get the measurements and its covariance
-        zk, Rk, Hk, Vk = self.GetMeasurements() # en la parte I parece que aun no hay que usar H y R...
-
+        zk, Rk, Hk, Vk = self.GetMeasurements() #IN GAUSSIAN FILTER, Hk and Vk are not used in the update step
+        
         # update step
         if zk is not None and len(zk) > 0:
-            xk, Pk = self.Update(zk, Rk, xk_bar, Pk_bar)
+            xk, Pk = self.Update(zk, Rk, xk_bar, Pk_bar, Hk, Vk) # in EKF, Hk and Vk are used in the update step
         else:
             xk, Pk = xk_bar, Pk_bar
 
