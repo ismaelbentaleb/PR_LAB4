@@ -83,6 +83,27 @@ class GFLocalization(Localization,GaussianFilter):
 
         # TODO: To be implemented by the student
 
+        # get the input and its covariance
+        uk, Qk = self.GetInput()  
+
+        # prediction step
+        xk_bar, Pk_bar = self.Prediction(uk, Qk, xk_1, Pk_1)
+
+        # get the measurements and its covariance
+        zk, Rk, Hk, Vk = self.GetMeasurements() # en la parte I parece que aun no hay que usar H y R...
+
+        # update step
+        if zk is not None and len(zk) > 0:
+            xk, Pk = self.Update(zk, Rk, xk_bar, Pk_bar)
+        else:
+            xk, Pk = xk_bar, Pk_bar
+
+        # log the results
+        self.Log(self.robot.xsk, xk, Pk, xk_bar, zk)
+
+        # plot the uncertainty ellipse of the robot pose
+        self.PlotUncertainty(xk, Pk)
+        
         return xk, Pk
 
     def LocalizationLoop(self, x0, P0, usk):
