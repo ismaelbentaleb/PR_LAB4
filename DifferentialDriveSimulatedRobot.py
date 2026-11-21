@@ -74,7 +74,7 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
         self.xy_feature_reading_frequency = 50  # frequency of XY feature readings
         self.xy_max_range = 50  # maximum XY range, used to simulate the field of view
 
-        self.yaw_reading_frequency = 10  # frequency of Yasw readings
+        self.yaw_reading_frequency = 1  # frequency of Yasw readings
         self.v_yaw_std = np.deg2rad(5)  # std deviation of simulated heading noise
 
     def fs(self, xsk_1, usk):  # input velocity motion model with velocity noise
@@ -109,7 +109,35 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         # TODO: to be completed by the student
 
-        pass
+        nu_d = np.array([[usk[0, 0]], 
+                         [0.0], 
+                         [usk[1, 0]]])
+        
+        eta_sk_1 = Pose3D(xsk_1[0:3, ])
+        nu_sk_1 = xsk_1[3:6,]
+        dt = self.dt
+
+        w_sk = np.random.multivariate_normal(np.zeros(3), self.Qsk).reshape(3,1)
+        K = np.eye(3) # we assume that the robot can reach the desired velocity in one time step
+
+        eta_sk = eta_sk_1.oplus(Pose3D(nu_sk_1 * dt + 0.5 * w_sk * dt**2))
+        
+        nu_sk = nu_sk_1 + K @ (nu_d - nu_sk_1) + w_sk * dt
+
+        self.usk = usk
+        self.xsk_1 = xsk_1
+        self.xsk = np.vstack((eta_sk, nu_sk))
+        
+
+        if self.k % self.visualizationInterval == 0:
+                self.PlotRobot()
+                self.xTraj.append(self.xsk[0, 0])
+                self.yTraj.append(self.xsk[1, 0])
+                self.trajectory.pop(0).remove()
+                self.trajectory = plt.plot(self.xTraj, self.yTraj, marker='.', color='orange', markersize=1)
+
+        self.k += 1
+        return self.xsk
 
     def ReadEncoders(self):
         """ Simulates the robot measurements of the left and right wheel encoders.
@@ -121,7 +149,31 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         # TODO: to be completed by the student
 
-        pass
+        u = self.xsk[3, 0]  # linear velocity in the direction of the x B-Frame axis
+        r = self.xsk[5, 0]  # angular velocity around the z
+        dt = self.dt
+
+        v_L = u - (self.wheelBase / 2) * r
+        v_R = u + (self.wheelBase / 2) * r
+
+        dist_L = v_L * dt
+        dist_R = v_R * dt
+
+
+        vueltas_L = dist_L / (2 * np.pi * self.wheelRadius)
+        vueltas_R = dist_R / (2 * np.pi * self.wheelRadius)
+
+        n_L = int(vueltas_L * self.pulse_x_wheelTurns)
+        n_R = int(vueltas_R * self.pulse_x_wheelTurns)
+
+        zsk = np.array([[n_L], [n_R]])
+
+        noise = np.random.multivariate_normal(np.zeros(2), self.Re).reshape(2, 1) # necessary?
+
+        zsk = np.array([[n_L], [n_R]]) + noise
+        Rsk = self.Re
+
+        return zsk, Rsk
 
     def ReadCompass(self):
         """ Simulates the compass reading of the robot.
@@ -131,7 +183,10 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         # TODO: to be completed by the student
 
-        pass
+        yaw = self.xsk[2, 0] + np.random.normal(0, self.v_yaw_std)
+        R_yaw = self.v_yaw_std ** 2
+        
+        return yaw, R_yaw
 
     def PlotRobot(self):
         """ Updates the plot of the robot at the current pose """
