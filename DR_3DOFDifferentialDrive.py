@@ -2,6 +2,8 @@ from Localization import *
 import numpy as np
 from DifferentialDriveSimulatedRobot import *
 
+from Feature import *
+
 class DR_3DOFDifferentialDrive(Localization):
     """
     Dead Reckoning Localization for a Differential Drive Mobile Robot.
@@ -32,7 +34,25 @@ class DR_3DOFDifferentialDrive(Localization):
 
         # TODO: to be completed by the student
 
-        pass
+        n_L = uk[0, 0]  # left wheel encoder reading
+        n_R = uk[1, 0]  # right wheel encoder reading    
+        
+        # metros
+        d_L = 2 * np.pi * self.wheelRadius * (n_L / self.robot.pulse_x_wheelTurns)
+        d_R = 2 * np.pi * self.wheelRadius * (n_R / self.robot.pulse_x_wheelTurns)
+        
+        # displacement and change in orientation
+        d = (d_R + d_L) / 2.0
+        d_theta = (d_R - d_L) / self.wheelBase
+        
+        xk = xk_1[0, 0] + d * np.cos(xk_1[2, 0])
+        yk = xk_1[1, 0] + d * np.sin(xk_1[2, 0])
+        psik = xk_1[2, 0] + d_theta
+
+        xk = np.array([[xk], [yk], [psik]])
+
+        self.xk = xk  
+        return xk
 
     def GetInput(self):
         """
@@ -43,7 +63,9 @@ class DR_3DOFDifferentialDrive(Localization):
 
         # TODO: to be completed by the student
 
-        pass
+        u_k = self.robot.ReadEncoders()[0]  # get only the readings from the wheel encoders, not the covariance matrix of the readings
+
+        return u_k
 
 if __name__ == "__main__":
 
