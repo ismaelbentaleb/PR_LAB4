@@ -192,6 +192,13 @@ class Pose3D(Pose):
         """
         # TODO: To be completed by the student
 
+        theta = AxB[2, 0]
+        ArB = np.array([[cos(theta), -sin(theta), 0],
+                        [sin(theta), cos(theta), 0], 
+                        [0, 0, 1]])  
+
+        AxC = AxB + ArB @ BxC
+
         return AxC
 
     def J_1oplus(AxB, BxC):
@@ -253,6 +260,12 @@ class Pose3D(Pose):
         :returns: A-Frame pose expressed in B-Frame coordinates (eq. :eq:`eq-ominus3dof`)
         """
         # TODO: To be completed by the student
+
+        theta = AxB[2, 0]
+        BrA = np.array([[cos(theta), sin(theta), 0],
+                        [-sin(theta), cos(theta), 0],
+                        [0, 0, 1]])
+        BxA = BrA @ (-AxB)
 
         return BxA
 
