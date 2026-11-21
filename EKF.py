@@ -78,6 +78,16 @@ class EKF(GaussianFilter):
         # KF equations begin here
         # TODO: To be implemented by the student
 
+        #mean prediction of the state vector
+        self.xk_bar = self.f(self.xk_1, self.uk)
+
+        # Jacobians of the motion model with respect to the state and noise vectors
+        Ak = self.Jfx(self.xk_1)
+        Wk = self.Jfw(self.xk_1)
+
+        # covariance prediction of the state vector
+        self.Pk_bar = Ak @ self.Pk_1 @Ak.T + Wk @ self.Qk @ Wk.T
+
         return self.xk_bar, self.Pk_bar
 
     def Update(self, zk, Rk, xk_bar, Pk_bar, Hk, Vk):
@@ -95,7 +105,7 @@ class EKF(GaussianFilter):
         # logging for plotting
         self.xk_bar = xk_bar
         self.Pk_bar = Pk_bar
-        self.zk = zk;
+        self.zk = zk; # observation vector
         self.nz = zk.shape[0];  # store dimensionality of the observation
         self.Rk = Rk  # store the observation and noise covariance for logging
 
@@ -103,4 +113,15 @@ class EKF(GaussianFilter):
 
         # TODO: To be implemented by the student
 
+        zk_bar = self.h(self.xk_bar)  # predicted observation vector
+
+        #gain matrix
+        Kk = Pk_bar @ Hk.T @ np.linalg.inv(Hk @ Pk_bar @ Hk.T + Vk @ Rk @ Vk.T)
+
+        # update of the state vector and its covariance matrix
+        self.xk = self.xk_bar + Kk @ (zk - zk_bar)
+
+        # update of the covariance matrix
+        self.Pk = (np.eye(self.xk_bar.shape[0]) - Kk @ Hk) @ Pk_bar
+       
         return self.xk, self.Pk
