@@ -35,21 +35,49 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
     def f(self, xk_1, uk):
         # TODO: To be completed by the student
 
+        #xk_bar = Pose3D(xk_1).oplus(Pose3D(uk))  # predicted state vector
+        # but for computing jacobians is more interesting to use the following form of the motion model
+        x, y, psi = xk_1[0, 0], xk_1[1, 0], xk_1[2, 0]
+        dx, dy, dpsi = uk[0, 0], uk[1, 0], uk[2, 0]
+
+        xk_bar = np.array([
+            [x + dx * np.cos(psi) - dy * np.sin(psi)],
+            [y + dx * np.sin(psi) + dy * np.cos(psi)],
+            [psi + dpsi]
+        ])
         return xk_bar
 
     def Jfx(self, xk_1):
         # TODO: To be completed by the student
 
+        psi =  xk_1[2, 0]
+        dx, dy = self.uk[0, 0], self.uk[1, 0]
+
+        J = np.array([
+            [1.0, 0.0, -dx * np.sin(psi) - dy * np.cos(psi)],
+            [0.0, 1.0, dx * np.cos(psi) - dy * np.sin(psi)],
+            [0.0, 0.0, 1.0]
+        ])
+
         return J
 
     def Jfw(self, xk_1):
         # TODO: To be completed by the student
-
+        
+        #the noise is inside the input vector, so the jacobian of the motion model with respect to the noise vector is the same as the jacobian of the motion model with respect to the input vector
+        psi =  xk_1[2, 0]
+        J = np.array([
+            [np.cos(psi), -np.sin(psi), 0],
+            [np.sin(psi), np.cos(psi), 0],
+            [0, 0, 1]
+        ])
+        
         return J
 
     def h(self, xk):  #:hm(self, xk):
         # TODO: To be completed by the student
 
+        h = np.array([[xk[2, 0]]])
         return h  # return the expected observations
 
     def GetInput(self):
@@ -58,6 +86,33 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
         :return: uk,Qk
         """
         # TODO: To be completed by the student
+        zsk, Rsk = self.robot.ReadEncoders()
+        n_L = zsk[0, 0]  # left wheel encoder reading
+        n_R = zsk[1, 0]  # right wheel encoder reading    
+        
+        # metros
+        kp = (np.pi * self.robot.wheelRadius) / self.robot.pulse_x_wheelTurns
+        d_L = 2 * kp * n_L 
+        d_R = 2 * kp * n_R
+        
+        # displacement and change in orientation
+
+        d = (d_R + d_L) / 2.0
+        d_psi = (d_R - d_L) / self.robot.wheelBase
+
+        uk = np.array([[d], [0.0],[d_psi]])  # input vector. Y = 0 since we are not considering lateral displacement in this model
+
+        # noise covariance matrix
+        # we have the covariance of the encoder readings in pulses. We need to convert it to meters and radians
+        # we need to compute the Jacobian of the transformation from pulses to meters and radians
+        # the first column will be the derivative of u with respect to n_L, the second column will be the derivative of d_R with respect to n_L and n_R, and the third column will be the derivative of u with respect to n_R
+
+        Ju = np.array([[kp, kp],
+                       [0, 0],
+                       [-2 * kp / self.robot.wheelBase,
+                        2 * kp / self.robot.wheelBase]])
+
+        Qk = Ju @ Rsk @ Ju.T
 
         return uk, Qk
 
@@ -67,7 +122,20 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
         :return: zk, Rk, Hk, Vk
         """
         # TODO: To be completed by the student
+        # we shold manage the case when the compass is not available, in that case we should return None for zk and Rk, and Hk and Vk should be empty matrices
+        if self.k % self.robot.yaw_reading_frequency == 0:
+            yaw, R_yaw = self.robot.ReadCompass()
+            zk = np.array([[yaw]])
+            Rk = np.array([[R_yaw]])
+            Hk = np.array([[0, 0, 1]])
+            Vk = np.array([[1]])
+        else:
+            zk = None
+            Rk = None
+            Hk = None
+            Vk = None
 
+    
         return zk, Rk, Hk, Vk
 
 
